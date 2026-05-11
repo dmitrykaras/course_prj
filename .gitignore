@@ -1,0 +1,31 @@
+# Скомпилированные файлы (исполняемые файлы и библиотеки)
+*.exe
+*.out
+*.app
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+
+# Папки сборки (стандарт для CMake и большинства инструментов)
+build/
+bin/
+obj/
+
+# Временные файлы и кэш
+.cache/
+*.log
+*.tmp
+
+# Специфические файлы IDE (VS Code, Visual Studio)
+.vscode/
+.vs/
+*.user
+*.suo
+x64/
+course_project/x64
+
+*.vcxproj
+*.vcxproj.filters
