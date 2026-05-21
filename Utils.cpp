@@ -1,5 +1,4 @@
 #include "Utils.h"
-#include <algorithm>
 
 vector<string> Utils::generateNgrams(const string& text, size_t n) {
     vector<string> ngrams;
@@ -22,9 +21,9 @@ string Utils::toLower(string text) {
         if (uc >= 192 && uc <= 223) {
             c = (char)(uc + 32); // Сдвигаем в диапазон а-я (224-255)
         }
-        // Отдельно обрабатываем заглавную Ё (код 168)
+        // Отдельно обрабатываем заглавную Ё 
         else if (uc == 168) {
-            c = (char)184; // Маленькая ё (код 184)
+            c = (char)184; // Маленькая ё
         }
         else {
             c = (char)tolower(uc);

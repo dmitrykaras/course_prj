@@ -21,4 +21,3 @@ public:
     // ѕриведение к нижнему регистру (с учетом кириллицы)
     static string toLower(string text);
 };
-

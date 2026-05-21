@@ -1,13 +1,10 @@
-#include "SearchEngine.h"
+п»ї#include "SearchEngine.h"
 
 SearchEngine::SearchEngine(int n) : nGramSize(n) {}
 
-// Обязательно указываем SearchEngine:: перед каждым методом
 void SearchEngine::addWord(const string& word) {
     string cleanWord = Utils::toLower(word);
 
-    // Вместо медленного find, просто добавляем. 
-    // Если в словаре russian_nouns.txt нет дублей, проверка не нужна.
     int wordId = (int)dictionary.size();
     dictionary.push_back(cleanWord);
 
@@ -19,21 +16,20 @@ void SearchEngine::addWord(const string& word) {
 }
 
 void SearchEngine::loadFromFile(string filename) {
-    // Начало замера
     auto start = chrono::high_resolution_clock::now();
 
     ifstream file(filename);
     if (!file.is_open()) {
-        cout << "[ОШИБКА] Не удалось открыть файл: " << filename << endl;
+        cout << "РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ С„Р°Р№Р»: " << filename << endl;
         return;
     }
 
-    // Небольшая оптимизация: резервируем место под 50к+ слов, чтобы вектор не "пересобирался"
-    dictionary.reserve(55000);
+    // Р РµР·РµСЂРІРёСЂСѓРµРј РјРµСЃС‚Рѕ РїРѕРґ 50Рє+ СЃР»РѕРІ, С‡С‚РѕР±С‹ РІРµРєС‚РѕСЂ РЅРµ "РїРµСЂРµСЃРѕР±РёСЂР°Р»СЃСЏ"
+    
 
     string word;
     int count = 0;
-    cout << "Загрузка базы слов... " << flush;
+    cout << "Р—Р°РіСЂСѓР·РєР° Р±Р°Р·С‹ СЃР»РѕРІ... " << flush;
 
     while (getline(file, word)) {
         if (!word.empty() && word.back() == '\r') word.pop_back();
@@ -44,25 +40,113 @@ void SearchEngine::loadFromFile(string filename) {
     }
     file.close();
 
-    // Конец замера
     auto end = chrono::high_resolution_clock::now();
     chrono::duration<double> elapsed = end - start;
 
-    cout << "Готово!" << endl;
+    cout << "Р“РѕС‚РѕРІРѕ!" << endl;
     cout << "-----------------------------------" << endl;
-    cout << "Загружено слов: " << count << endl;
-    cout << "Время индексации: " << elapsed.count() << " сек." << endl;
+    cout << "Р—Р°РіСЂСѓР¶РµРЅРѕ СЃР»РѕРІ: " << count << endl;
+    cout << "Р’СЂРµРјСЏ РёРЅРґРµРєСЃР°С†РёРё: " << elapsed.count() << " СЃРµРє." << endl;
     cout << "-----------------------------------" << endl;
+
+    // РђРІС‚РѕРјР°С‚РёС‡РµСЃРєРёР№ РІС‹РІРѕРґ Р°СѓРґРёС‚Р° С…РµС€-С‚Р°Р±Р»РёС†С‹ СЃСЂР°Р·Сѓ РїРѕСЃР»Рµ РёРЅРґРµРєСЃР°С†РёРё
+    printCollisionStats();
+}
+
+void SearchEngine::printCollisionStats() {
+    size_t totalBuckets = index.bucket_count(); // РћР±С‰РµРµ РєРѕР»РёС‡РµСЃС‚РІРѕ СЏС‡РµРµРє (РєРѕСЂР·РёРЅ) РІ RAM
+    size_t busyBuckets = 0;                     // РЎРєРѕР»СЊРєРѕ СЏС‡РµРµРє Р·Р°РЅСЏС‚Рѕ Р±РёРіСЂР°РјРјР°РјРё
+    size_t collisionBuckets = 0;                // РЎРєРѕР»СЊРєРѕ СЏС‡РµРµРє СЃРѕРґРµСЂР¶Р°С‚ РєРѕР»Р»РёР·РёРё (> 1 Р±РёРіСЂР°РјРјС‹)
+    size_t maxBucketSize = 0;                   // РњР°РєСЃРёРјР°Р»СЊРЅР°СЏ РіР»СѓР±РёРЅР° РєРѕР»Р»РёР·РёРё
+
+    for (size_t i = 0; i < totalBuckets; ++i) {
+        size_t bSize = index.bucket_size(i);
+        if (bSize > 0) {
+            busyBuckets++;
+            if (bSize > 1) {
+                collisionBuckets++;
+            }
+            if (bSize > maxBucketSize) {
+                maxBucketSize = bSize;
+            }
+        }
+    }
+
+    // РџСЂРѕС†РµРЅС‚ РєРѕР»Р»РёР·РёР№ СЃС‡РёС‚Р°РµРј РєР°Рє РѕС‚РЅРѕС€РµРЅРёРµ РєРѕРЅС„Р»РёРєС‚РЅС‹С… СЏС‡РµРµРє Рє РѕР±С‰РµРјСѓ С‡РёСЃР»Сѓ Р·Р°РЅСЏС‚С‹С… СЏС‡РµРµРє
+    double collisionPercent = (busyBuckets > 0) ? ((double)collisionBuckets / busyBuckets * 100.0) : 0.0;
+
+    cout << "\n----- РђРЅР°Р»РёР· С…РµС€-С‚Р°Р±Р»РёС†С‹ РёРЅРґРµРєСЃР° -----" << endl;
+    cout << "Р’С‹РґРµР»РµРЅРѕ СЏС‡РµРµРє: " << totalBuckets << endl;
+    cout << "Р—Р°РЅСЏС‚Рѕ СѓРЅРёРєР°Р»СЊРЅС‹РјРё Р±РёРіСЂР°РјРјР°РјРё: " << busyBuckets << endl;
+    cout << "РЇС‡РµРµРє СЃ РєРѕР»Р»РёР·РёСЏРјРё: " << collisionBuckets << endl;
+    cout << "РџСЂРѕС†РµРЅС‚ РєРѕР»Р»РёР·РёР№ СЃСЂРµРґРё Р·Р°РЅСЏС‚С‹С… СЏС‡РµРµРє: " << collisionPercent << "%" << endl;
+    cout << "РњР°РєСЃ. РєРѕР»Р»РёР·РёР№ РІ РѕРґРЅРѕР№ С†РµРїРѕС‡РєРµ: " << maxBucketSize << " СЌР»." << endl;
+    cout << "РљРѕСЌС„С„РёС†РёРµРЅС‚ Р·Р°РіСЂСѓР·РєРё (Load Factor): " << index.load_factor() << endl;
+    cout << "РњР°РєСЃ. РїСЂРµРґРµР» Р·Р°РіСЂСѓР·РєРё (Max Load Factor): " << index.max_load_factor() << endl;
+    cout << "---------------------------------------\n" << endl;
 }
 
 void SearchEngine::search(const string& query) {
-    auto start = chrono::high_resolution_clock::now();
-
     string cleanQuery = Utils::toLower(query);
     auto queryNgramsRaw = Utils::generateNgrams(cleanQuery, nGramSize);
-    set<string> queryNgrams(queryNgramsRaw.begin(), queryNgramsRaw.end());
 
+    cout << "\nР Р°Р·Р±РёРµРЅРёРµ Р·Р°РїСЂРѕСЃР° РЅР° Р±РёРіСЂР°РјРјС‹: ";
+    for (const auto& gram : queryNgramsRaw) {
+        cout << "[" << gram << "] ";
+    }
+    cout << endl;
+
+    set<string> queryNgrams(queryNgramsRaw.begin(), queryNgramsRaw.end());
     if (queryNgrams.empty()) return;
+
+    // =================================================================
+    // 1. РќРђРР’РќР«Р™ Р›РРќР•Р™РќР«Р™ РџРћРРЎРљ (РџРѕР»РЅС‹Р№ РїРµСЂРµР±РѕСЂ СЃР»РѕРІР°СЂСЏ Р·Р° O(N))
+    // =================================================================
+    cout << "\n 1. РќР°РёРІРЅС‹Р№ Р»РёРЅРµР№РЅС‹Р№ РїРѕРёСЃРє..." << endl;
+    auto startLinear = chrono::high_resolution_clock::now();
+
+    vector<pair<int, double>> linearResults;
+
+    for (size_t wordId = 0; wordId < dictionary.size(); ++wordId) {
+        const string& word = dictionary[wordId];
+
+        auto wordNgramsRaw = Utils::generateNgrams(word, nGramSize);
+        set<string> wordNgrams(wordNgramsRaw.begin(), wordNgramsRaw.end());
+
+        int intersection = 0;
+        for (const auto& gram : queryNgrams) {
+            if (wordNgrams.count(gram)) {
+                intersection++;
+            }
+        }
+
+        if (intersection > 0) {
+            size_t wordLen = word.length();
+            size_t wordNgramsCount = (wordLen >= (size_t)nGramSize) ? (wordLen - nGramSize + 1) : 1;
+
+            double similarity = (double)intersection / (queryNgrams.size() + wordNgramsCount - intersection);
+            linearResults.push_back({ (int)wordId, similarity });
+        }
+    }
+
+    sort(linearResults.begin(), linearResults.end(), [](const auto& a, const auto& b) {
+        return a.second > b.second;
+        });
+
+    auto endLinear = chrono::high_resolution_clock::now();
+    chrono::duration<double, milli> elapsedLinear = endLinear - startLinear;
+
+    for (size_t i = 0; i < min(linearResults.size(), (size_t)5); ++i) {
+        cout << " - " << dictionary[linearResults[i].first] << " [" << (int)(linearResults[i].second * 100) << "%]" << endl;
+    }
+    cout << "Р’СЂРµРјСЏ Р»РёРЅРµР№РЅРѕРіРѕ РїРѕРёСЃРєР°: " << elapsedLinear.count() << " РјСЃ" << endl;
+
+
+    // =================================================================
+    // 2. РћРџРўРРњРР—РР РћР’РђРќРќР«Р™ РџРћРРЎРљ (Р§РµСЂРµР· РёРЅРІРµСЂС‚РёСЂРѕРІР°РЅРЅС‹Р№ РёРЅРґРµРєСЃ Р·Р° O(1))
+    // =================================================================
+    cout << "\n 2. РћРїС‚РёРјРёР·РёСЂРѕРІР°РЅРЅС‹Р№ РїРѕРёСЃРє С‡РµСЂРµР· РёРЅРґРµРєСЃ..." << endl;
+    auto startOpt = chrono::high_resolution_clock::now();
 
     unordered_map<int, int> scores;
     for (const auto& gram : queryNgrams) {
@@ -75,9 +159,6 @@ void SearchEngine::search(const string& query) {
 
     vector<pair<int, double>> rankedResults;
     for (auto const& [wordId, count] : scores) {
-        // ОПТИМИЗАЦИЯ: Вместо генерации N-грамм считаем их количество по формуле
-        // Для слова длиной L количество уникальных N-грамм (обычно) = L - N + 1
-        // Это гораздо быстрее, чем создавать объекты string и vector
         size_t wordLen = dictionary[wordId].length();
         size_t wordNgramsCount = (wordLen >= (size_t)nGramSize) ? (wordLen - nGramSize + 1) : 1;
 
@@ -89,13 +170,19 @@ void SearchEngine::search(const string& query) {
         return a.second > b.second;
         });
 
-    auto end = chrono::high_resolution_clock::now();
-    chrono::duration<double, milli> elapsed = end - start;
+    auto endOpt = chrono::high_resolution_clock::now();
+    chrono::duration<double, milli> elapsedOpt = endOpt - startOpt;
 
-    cout << "\nРезультаты (N=" << nGramSize << "):" << endl;
     for (size_t i = 0; i < min(rankedResults.size(), (size_t)5); ++i) {
         cout << " - " << dictionary[rankedResults[i].first] << " [" << (int)(rankedResults[i].second * 100) << "%]" << endl;
     }
-    cout << "-----------------------------------" << endl;
-    cout << "Время поиска: " << elapsed.count() << " мс" << endl;
+    cout << "Р’СЂРµРјСЏ РїРѕРёСЃРєР° С‡РµСЂРµР· РРЅРґРµРєСЃ: " << elapsedOpt.count() << " РјСЃ" << endl;
+
+    if (elapsedOpt.count() > 0) {
+        double speedup = elapsedLinear.count() / elapsedOpt.count();
+        cout << "РРЅРІРµСЂС‚РёСЂРѕРІР°РЅРЅС‹Р№ РёРЅРґРµРєСЃ Р±С‹СЃС‚СЂРµРµ РІ " << speedup << " СЂР°Р·!" << endl;
+    }
+    else {
+        cout << "Р Р•Р—РЈР›Р¬РўРђРў: РРЅРґРµРєСЃ РѕС‚СЂР°Р±РѕС‚Р°Р» РїСЂР°РєС‚РёС‡РµСЃРєРё РјРіРЅРѕРІРµРЅРЅРѕ (~0 РјСЃ)!" << endl;
+    }
 }
